@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{adminLayout.html}"
+>
+<head>
+    <meta charset="UTF-8">
+    <title>productionStatistics</title>
+</head>
+<body>
+
+    <main class="container-fluid my-4" layout:fragment="main-content">
+        <div>
+            <div class="row mb-2">
+                <div class="col-12">
+                    <div class="text-center bg-info text-white p-2">
+                        <h3>Production Statistics</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-0">
+                <!-- Filter -->
+                <div class="col-4">
+                    <div class="card mt-2">
+                        <div class="card-header bg-dark text-white text-center"><i class="fa-solid fa-filter me-2"></i>Filter</div>
+                        <div class="card-body">
+
+                            <form th:action="@{/admin/statistics}" method="get" class="text-center" th:object="${filter}">
+
+                                <div class="mb-3">
+                                    <label for="dateDebut" class="form-label bg-info text-white d-block">Date Debut</label>
+                                    <input type="date" class="form-control" id="dateDebut" th:field="*{dateDebut}">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="dateFin" class="form-label bg-info text-white d-block">Date Fin</label>
+                                    <input type="date" class="form-control" id="dateFin" th:field="*{dateFin}">
+                                </div>
+
+                                <button type="submit" class="btn btn-primary">Search</button>
+                            </form>
+
+                        </div>
+                    </div>
+                </div>
+                <!-- packages -->
+                <div class="col-8 d-flex justify-content-end flex-wrap">
+                    <div class="card m-2" style="width: 260px"
+                         th:each="route : ${routes}" th:object="${route}">
+                        <div class="card-header bg-dark d-flex justify-content-between">
+                            <span class="badge bg-secondary bg-info" data-bs-toggle="modal" data-bs-target="#exampleModal"
+                                  style="cursor: pointer;"
+                                  th:text="*{totalCables}"
+                                  th:onclick="loadCables([[*{route.id}]],[[${filter.dateDebut}]], [[${filter.dateFin}]])">300</span>
+                            <span class="badge bg-secondary" th:text="*{route.routeV}"></span>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                <tr>
+                                    <th scope="col">Line</th>
+                                    <th scope="col" class="text-center">count</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="line : *{lines}">
+                                    <td th:text="${line.lineName}"></td>
+                                    <td class="text-center" th:text="${line.cables}"></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- statistics -->
+        <div class="modal" id="exampleModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content rounded-0">
+                    <div class="modal-header">
+                        <button class="btn btn-sm btn-success" onclick="exportTableToExcel()" id="downloadExelBtn">Excel</button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table" id="routeCables">
+                            <thead>
+                                <tr>
+                                    <th>codeBar</th> <th>lineName</th> <th>started</th> <th>completed</th> <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+<!--                        <button type="button" class="btn btn-primary">Save changes</button>-->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+        <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+        <script th:inline="javascript">
+            let cables = null;
+            let routeName = "";
+            let GlobalDateDebut = "";
+            let GlobalDateFin = "";
+            const loadCables = function(routeId,dateDebut,dateFin){
+                const tableBody = document.querySelector('#routeCables tbody');
+                tableBody.innerHTML = '';
+                fetch(`http://localhost:8080/admin/api/cables/route/${routeId}?dateDebut=${dateDebut}&dateFin=${dateFin}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const exelBtn = document.getElementById("downloadExelBtn");
+                        if(data.length==0){
+                            routeName = "";
+                            GlobalDateDebut = "";
+                            GlobalDateFin = "";
+                            exelBtn.disabled = true;
+                        }else{
+                            routeName = "_"+data[0].routeName;
+                            GlobalDateDebut = "_"+dateDebut;
+                            GlobalDateFin = "_"+dateFin;
+                            exelBtn.disabled = false;
+                        }
+
+                        // Loop through the rows array and add each row to the table
+                        data.forEach(rowData => {
+                            console.log(rowData)
+                            // Create a new row element
+                            const row = tableBody.insertRow();
+
+                            // Create new cells and add them to the row
+                            const codeBarCell = row.insertCell();
+                            const lineNameCell = row.insertCell();
+                            const startedCell = row.insertCell();
+                            const completedCell = row.insertCell();
+                            const durationCell = row.insertCell();
+
+                            // Add the data to the cells
+                            let startDate = new Date(rowData.started);
+                            let endDate = new Date(rowData.completed);
+
+                            codeBarCell.textContent = rowData.barCode;
+                            lineNameCell.textContent = rowData.lineName;
+                            startedCell.textContent = startDate.toLocaleDateString('en-US')+" "+startDate.toLocaleTimeString('en-US');
+                            completedCell.textContent =  endDate.toLocaleDateString('en-US')+" "+endDate.toLocaleTimeString('en-US');
+                            durationCell.textContent = rowData.duration;
+                        });
+
+                    })
+                    .catch(error => {
+                        // Handle any errors
+                        console.error(error);
+                    });
+
+
+            }
+
+            function exportTableToExcel() {
+                var table = document.getElementById("routeCables");
+                var headers = Array.from(table.querySelectorAll("th")).map(th => th.innerText);
+                var data = Array.from(table.querySelectorAll("tbody tr")).map(row =>
+                    Array.from(row.querySelectorAll("td")).map(td => td.innerText)
+                );
+
+                var worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+                var workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+                var wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
+
+                function s2ab(s) {
+                    var buf = new ArrayBuffer(s.length);
+                    var view = new Uint8Array(buf);
+                    for (var i = 0; i < s.length; i++) {
+                        view[i] = s.charCodeAt(i) & 0xFF;
+                    }
+                    return buf;
+                }
+
+                saveAs(new Blob([s2ab(wbout)], { type: "application/octet-stream" }), `cables${routeName}${GlobalDateDebut}${GlobalDateFin}.xlsx`);
+            }
+
+        </script>
+    </main>
+
+</body>
+</html>

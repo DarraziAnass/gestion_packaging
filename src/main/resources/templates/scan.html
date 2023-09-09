@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{adminLayout.html}"
+>
+<head>
+    <meta charset="UTF-8">
+    <title>scan</title>
+</head>
+<body>
+<main class="container my-4" layout:fragment="main-content">
+
+    <div class="row g-2">
+        <div class="col-6">
+            <table class="table table-dark table-striped">
+                <thead>
+                <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Quantite</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="cablesPerHour : ${cablesCount}" th:object="${cablesPerHour}">
+                    <td th:text="|*{hour} -- *{hour+1}|"></td>
+                    <td th:text="*{cablesCount}"></td>
+                </tr>
+                <tr>
+                    <th scope="row" class="table-active">Total</th>
+                    <td th:text="${totalCables}">21</td>
+
+                </tr>
+                <!-- time and date -->
+                <tr>
+                    <th><h5 id="displayDate"></h5></th>
+                    <th style="width: 50%"><h5 id="displayDateTime"></h5></th>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="col-6">
+            <div th:if="${currentPackage}">
+                <table class="table table-bordered">
+                    <thead>
+                    <tr>
+                        <th>fournisseur</th> <th>eticket</th> <th>quantity</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:object="${currentPackage}" th:if="${currentPackage}">
+                        <td th:text="*{supplier.supplierCode}" style="width: 40%"></td>
+                        <td th:text="*{barCode}" style="width: 40%"></td>
+                        <td th:text="|*{currentQuatity}/*{totalQuantity}|" style="width: 20%"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center mb-2">
+                <img class="w-75" th:src="@{/images/scan_fournisseur.jpg}" rel="scan fournisseur" th:if="${scan.key.getScanKey()=='FOURNISSEUR'}">
+                <img class="w-75" th:src="@{/images/scan_eticket.jpg}" rel="scan eticket" th:if="${scan.key.getScanKey()=='ETICKET'}">
+                <img class="w-75" th:src="@{/images/scan_quantite.jpg}" rel="scan quantite" th:if="${scan.key.getScanKey()=='QUANTITE'}">
+                <img th:src="@{/images/scan_cable.jpg}" rel="scan cable" th:if="${scan.key.getScanKey()=='CABLE'}">
+            </div>
+            <div class="mx-auto mb-2 text-center">
+                <form class="pos-style" id="scanReader" name="pos" th:action="@{/user/scan/}" method="post" th:object="${scan}">
+                    <div class="form-group" th:if="${scan.key.getScanKey()=='FOURNISSEUR'}">
+                        <input type="hidden" th:field="*{key}">
+                        <input type="text" id="fournisseur" th:field="*{value}"  class="form-control" placeholder="bar code reader">
+                    </div>
+                    <div class="form-group" th:if="${scan.key.getScanKey()=='ETICKET'}">
+                        <input type="hidden" th:field="*{key}">
+                        <input type="text" id="eticket" th:field="*{value}"  class="form-control" placeholder="bar code reader">
+                    </div>
+                    <div class="form-group" th:if="${scan.key.getScanKey()=='QUANTITE'}">
+                        <input type="hidden" th:field="*{key}">
+                        <input type="text" id="quantite" th:field="*{value}"  class="form-control" placeholder="bar code reader">
+                    </div>
+                    <div class="form-group" th:if="${scan.key.getScanKey()=='CABLE'}">
+                        <input type="hidden" th:field="*{key}">
+                        <input type="hidden" id="combinedDateTimeInput" th:field="*{scanDateTime}">
+                        <input type="text" id="cable" th:field="*{value}"  class="form-control" placeholder="bar code reader">
+                    </div>
+                </form>
+            </div>
+
+            <div th:if="${currentPackage}">
+                <table class="table table-bordered">
+                    <thead>
+                    <tr>
+                        <th>fournisseur</th> <th>cable</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="cable : ${currentPackageCables}" th:object="${cable}" th:if="${currentPackageCables}">
+                        <td th:text="*{APackage.supplier.supplierCode}"></td>
+                        <td th:text="*{barCode}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function(){
+            const firstInput = document.querySelector('#scanReader input:not([type="hidden"])');
+            if (firstInput) {
+                firstInput.focus();
+            }
+            updateDateTime()
+            // setInterval(updateDateTime, 1000);
+        }
+        function updateDateTime() {
+            let currentDate = new Date().toISOString().slice(0, 10);
+            let currentTime = new Date().toISOString().slice(11, 19);
+            let combinedDateTime = currentDate + "T" + currentTime;
+
+            document.getElementById("combinedDateTimeInput").value = combinedDateTime;
+        }
+    </script>
+    <script>
+        function displaytime() {
+            var session = "";
+            var month = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            var daylist = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+            var today = new Date();
+            var day = today.getDay();
+            var date = today.getFullYear() + "/" + (today.getMonth() + 1) + "/" + today.getDate();
+            var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+
+            if (today.getHours() >= 12) {
+                session = "PM";
+            } else {
+                session = "AM";
+            }
+
+            document.getElementById("displayDate").innerHTML = daylist[day] + ", " + month[today.getMonth()] + " " + today.getDate();
+            document.getElementById("displayDateTime").innerHTML = date + " " + time + " " + session;
+        }
+
+        setInterval(displaytime, 10);
+
+    </script>
+</main>
+</body>
+</html>
